@@ -1,0 +1,4 @@
+SSID:Zorglub
+PASSWD:Vive la Bretagne !
+CHANGE_IMAGE:60
+BRIGHTNESS:50

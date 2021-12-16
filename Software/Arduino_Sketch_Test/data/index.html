@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <script type="text/javascript" src="script.js"></script>
+
+  <!-- HEAD -->
+  <head>
+    <link rel="stylesheet" href="style.css">
+    <title>Tonton Damien's super pixel-art editor !!!</title>
+  </head>
+
+  <!-- BODY -->
+  <body onload="init()">
+
+    <div class="header">Le tableau magique de tonton Damien</div>
+
+    <div class="menu">
+      <div class="boutton_menu" id="draw"><a href="index.html">Dessiner</a></div>
+      <div class="boutton_menu" id="list"><a href="list.html">Gérer les dessins</a></div>
+    </div>
+
+    <div class="content">
+      <div class="sprite">
+        <canvas  id="sprite" style="border:1px solid #000000;" width="500px" height="500px"></canvas>
+      </div>
+      <div class="drawingTools">
+        <canvas id="palette" style="border:1px solid #000000;" width="160px" height="160px"></canvas>
+        <div id="fill">
+          Remplir: <button id="fill_button"></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <button id="save_button">Sauvegarder</button>
+    </div>
+  </body>
+</html>
