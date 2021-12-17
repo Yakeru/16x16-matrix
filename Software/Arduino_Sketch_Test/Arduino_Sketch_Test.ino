@@ -26,7 +26,8 @@ const CRGB pico8_palette[16] = {
   CHSV(HUE_RED, 230, 255),    CHSV(HUE_ORANGE, 220, 255), CHSV(HUE_YELLOW, 255, 255), CHSV(HUE_GREEN,255,255), 
   CHSV(HUE_BLUE, 130, 255),   CHSV(HUE_PURPLE,120,200),   CHSV(HUE_PINK,150,255),     CHSV(HUE_ORANGE, 160, 255)
 };
-                            
+
+File sketchDir;
 /**************************************************************************************
  *                                SETUP
  *************************************************************************************/
@@ -49,6 +50,7 @@ void setup() {
     Serial.println("SPIFFS Mount failed");
   } else {
     Serial.println("SPIFFS Mount succesfull");
+    sketchDir = SPIFFS.open("/sketches");
   }
 
   //FastLED setup
@@ -78,6 +80,7 @@ void setup() {
 }
 
 bool playmode = true;
+uint32_t lastImageShowed = 0;
 
 /**************************************************************************************
  *                                MAIN LOOP
@@ -85,27 +88,25 @@ bool playmode = true;
 void loop() {
   server.handleClient();
   FastLED.show();
-  delay(250);
-
-  if(playmode) {
-
-    if (SPIFFS.exists("/sketches.txt")) {
-      File file = SPIFFS.open("/sketches.txt", "r"); 
-
-      //array to store a sketch
-      //a sketch is maximum 758 chars
-      char sketch[758] = {' '};
-      char currentChar = ' ';
+  delay(5);
   
-      uint16_t sketchIndex = 0;
-      while(currentChar != '\n'){
-        currentChar = file.read();
-        sketch[sketchIndex] = currentChar;
-        sketchIndex++;
-      }
+  if(playmode && (millis() - lastImageShowed >= 1000)) {
+    File file = sketchDir.openNextFile();
 
-      setLEDsWithSketch(&sketch[0]);
+    //array to store a sketch
+    //a sketch is maximum 758 chars
+    char sketch[758] = {' '};
+    char currentChar = ' ';
+
+    uint16_t sketchIndex = 0;
+    while(currentChar != '\n'){
+      currentChar = file.read();
+      sketch[sketchIndex] = currentChar;
+      sketchIndex++;
     }
+
+    setLEDsWithSketch(&sketch[0]);
+    lastImageShowed = millis();
   }
 }
 
