@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <string.h>
 
 //File System
 #include "SPIFFS.h"
@@ -27,10 +28,11 @@ const CRGB pico8_palette[16] = {
   CHSV(HUE_BLUE, 130, 255),   CHSV(HUE_PURPLE,120,200),   CHSV(HUE_PINK,150,255),     CHSV(HUE_ORANGE, 160, 255)
 };
 
-File sketchDir;
+
 /**************************************************************************************
  *                                SETUP
  *************************************************************************************/
+
 void setup() {
 
   //Turn built-in LED OFF
@@ -45,12 +47,13 @@ void setup() {
   Serial.printf("CPU freq. : %u\n",ESP.getCpuFreqMHz());
 
   //Mount file System
+  bool fsOk = false;
   if(!SPIFFS.begin())
   {
     Serial.println("SPIFFS Mount failed");
   } else {
     Serial.println("SPIFFS Mount succesfull");
-    sketchDir = SPIFFS.open("/sketches");
+    fsOk = true;
   }
 
   //FastLED setup
@@ -79,34 +82,47 @@ void setup() {
   Serial.println("HTTP server Running on port 80");
 }
 
-bool playmode = true;
-uint32_t lastImageShowed = 0;
-
 /**************************************************************************************
  *                                MAIN LOOP
  *************************************************************************************/
+
+bool playmode = true;
+const char* sketchDirPath = "/sketches";
+File sketchDir = SPIFFS.open(sketchDirPath);
+uint32_t lastImageShowedMillis = 0;
+uint8_t lastImageShowedIndex = 0;
+
 void loop() {
   server.handleClient();
   FastLED.show();
   delay(5);
   
-  if(playmode && (millis() - lastImageShowed >= 1000)) {
-    File file = sketchDir.openNextFile();
+  if(playmode && (millis() - lastImageShowedMillis >= 1000)) {
 
-    //array to store a sketch
-    //a sketch is maximum 758 chars
-    char sketch[758] = {' '};
-    char currentChar = ' ';
+    File sketchFile = sketchDir.openNextFile();
 
-    uint16_t sketchIndex = 0;
-    while(currentChar != '\n'){
-      currentChar = file.read();
-      sketch[sketchIndex] = currentChar;
-      sketchIndex++;
+    if(sketchFile) {
+      Serial.print("Showing sketch: ");
+      Serial.println(sketchFile.name());
+      
+      //array to store a sketch
+      //a sketch is maximum 758 chars
+      char sketch[758] = {' '};
+      char currentChar = ' ';
+  
+      uint16_t sketchIndex = 0;
+      while(currentChar != '\n'){
+        currentChar = sketchFile.read();
+        sketch[sketchIndex] = currentChar;
+        sketchIndex++;
+      }
+  
+      setLEDsWithSketch(&sketch[0]);
+      lastImageShowedMillis = millis();
+    } else {
+      sketchDir.close();
+      sketchDir = SPIFFS.open(sketchDirPath);
     }
-
-    setLEDsWithSketch(&sketch[0]);
-    lastImageShowed = millis();
   }
 }
 
@@ -127,12 +143,7 @@ void setLEDsWithSketch(String sketch) {
   uint16_t ledIndex = 0;
   while (ptr != NULL && ledIndex < NUM_LEDS)
   {
-    Serial.print("(");
-    Serial.print(ledIndex);
-    Serial.print(",");
     g_LEDs[ledIndex] = pico8_palette[strtol(ptr, NULL, 10)];
-    Serial.print(ptr);
-    Serial.print(");");
     ptr = strtok(NULL, ",");
     ledIndex++;
   }
@@ -143,12 +154,7 @@ void setLEDsWithSketch(char* sketch) {
   uint16_t ledIndex = 0;
   while (ptr != NULL && ledIndex < NUM_LEDS)
   {
-    Serial.print("(");
-    Serial.print(ledIndex);
-    Serial.print(",");
     g_LEDs[ledIndex] = pico8_palette[strtol(ptr, NULL, 10)];
-    Serial.print(ptr);
-    Serial.print(");");
     ptr = strtok(NULL, ",");
     ledIndex++;
   }
@@ -187,12 +193,14 @@ bool handleFileRead(String path) {
   if (SPIFFS.exists(path)) {
     File file = SPIFFS.open(path, "r"); 
     size_t sent = server.streamFile(file, contentType);
-    if(path == "/save.html"){
+    
+    if(path == "/display.html"){
       String sketch = server.arg("sketch");
       Serial.print("Sketch reçu : ");
       Serial.println(sketch);
       setLEDsWithSketch(sketch);
     }
+    
     file.close();
     return true;
   }
