@@ -1,49 +1,46 @@
 #include <Arduino.h>
 
 //File System
-#include <FS.h>
+#include "SPIFFS.h"
 
 //Fast LED
-#define FASTLED_INTERNAL
 #define NUM_LEDS 256
-#define LED_PIN 5
+#define LED_PIN 22
 #include <FastLED.h>
 CRGB g_LEDs[NUM_LEDS] = {0};
 
 //WiFi and Web
-#include <ESP8266WiFi.h>
+#include <WiFi.h>
 #include <WiFiClient.h>
 const char* ssid = "ZORGLUB";
 const char* passwd = "Vive la Bretagne !";
 
 //WebServer
-#include <ESP8266WebServer.h>
-ESP8266WebServer server(80);
+#include <WebServer.h>
+WebServer server(80);
 
 //Pico-8 inspired color palette
 const CRGB pico8_palette[16] = {
-  CRGB(0x000000),             CHSV(HUE_BLUE,170,150),     CHSV(HUE_PURPLE,200,200) ,  CHSV(HUE_GREEN,180,120),
-  CHSV(HUE_ORANGE, 255, 100), CHSV(HUE_ORANGE, 20, 120),      CHSV(HUE_RED, 0, 190),      CHSV(HUE_ORANGE, 1, 255),
-  CHSV(HUE_RED, 230, 255),    CHSV(HUE_ORANGE, 220, 255), CHSV(HUE_YELLOW, 255, 255), CHSV(HUE_GREEN,255,255),
+  CRGB(0x000000),             CHSV(HUE_BLUE,170,150),     CHSV(HUE_PURPLE,200,200) ,  CHSV(HUE_GREEN,180,120), 
+  CHSV(HUE_ORANGE, 255, 100), CHSV(HUE_ORANGE, 20, 120),      CHSV(HUE_RED, 0, 190),      CHSV(HUE_ORANGE, 1, 255), 
+  CHSV(HUE_RED, 230, 255),    CHSV(HUE_ORANGE, 220, 255), CHSV(HUE_YELLOW, 255, 255), CHSV(HUE_GREEN,255,255), 
   CHSV(HUE_BLUE, 130, 255),   CHSV(HUE_PURPLE,120,200),   CHSV(HUE_PINK,150,255),     CHSV(HUE_ORANGE, 160, 255)
 };
-
+                            
 /**************************************************************************************
  *                                SETUP
  *************************************************************************************/
 void setup() {
 
-  system_update_cpu_freq(160);
-
   //Turn built-in LED OFF
-  pinMode(LED_BUILTIN, OUTPUT);
-  bool bLED = 0;
-  digitalWrite(LED_BUILTIN, bLED);
-
+//  pinMode(LED_BUILTIN, OUTPUT);
+//  bool bLED = 0;
+//  digitalWrite(LED_BUILTIN, bLED);
+  
   //Serial setup
   Serial.begin(115200);
   while(!Serial){};
-  Serial.println("NODEMCU Serial UP");
+  Serial.println("NODEMCU-ESP32 Serial UP");
   Serial.printf("CPU freq. : %u\n",ESP.getCpuFreqMHz());
 
   //Mount file System
@@ -71,7 +68,7 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   //Http Server
-  server.onNotFound([]() {
+  server.onNotFound([]() { 
     // If the client requests any URI
     if (!handleFileRead(server.uri())) // send it if it exists
       server.send(404, "text/plain", "404: Not Found"); // otherwise, respond with a 404 (Not Found) error
@@ -80,13 +77,36 @@ void setup() {
   Serial.println("HTTP server Running on port 80");
 }
 
+bool playmode = true;
+
 /**************************************************************************************
  *                                MAIN LOOP
  *************************************************************************************/
 void loop() {
-  FastLED.show();
-  delay(25);
   server.handleClient();
+  FastLED.show();
+  delay(250);
+
+  if(playmode) {
+
+    if (SPIFFS.exists("/sketches.txt")) {
+      File file = SPIFFS.open("/sketches.txt", "r"); 
+
+      //array to store a sketch
+      //a sketch is maximum 758 chars
+      char sketch[758] = {' '};
+      char currentChar = ' ';
+  
+      uint16_t sketchIndex = 0;
+      while(currentChar != '\n'){
+        currentChar = file.read();
+        sketch[sketchIndex] = currentChar;
+        sketchIndex++;
+      }
+
+      setLEDsWithSketch(&sketch[0]);
+    }
+  }
 }
 
 /**************************************************************************************
@@ -99,11 +119,35 @@ void setLEDsWithSketch(String sketch) {
     p[i] = sketch[i];
   }
 
+  Serial.println("setLEDsWithSketch: ");
+  Serial.println(p);
+  
   char *ptr = strtok(p, ",");
-  uint8_t ledIndex = 0;
+  uint16_t ledIndex = 0;
   while (ptr != NULL && ledIndex < NUM_LEDS)
   {
+    Serial.print("(");
+    Serial.print(ledIndex);
+    Serial.print(",");
     g_LEDs[ledIndex] = pico8_palette[strtol(ptr, NULL, 10)];
+    Serial.print(ptr);
+    Serial.print(");");
+    ptr = strtok(NULL, ",");
+    ledIndex++;
+  }
+}
+
+void setLEDsWithSketch(char* sketch) {
+  char *ptr = strtok(sketch, ",");
+  uint16_t ledIndex = 0;
+  while (ptr != NULL && ledIndex < NUM_LEDS)
+  {
+    Serial.print("(");
+    Serial.print(ledIndex);
+    Serial.print(",");
+    g_LEDs[ledIndex] = pico8_palette[strtol(ptr, NULL, 10)];
+    Serial.print(ptr);
+    Serial.print(");");
     ptr = strtok(NULL, ",");
     ledIndex++;
   }
@@ -111,7 +155,7 @@ void setLEDsWithSketch(String sketch) {
 
 void drawPalette() {
   for(int index=0; index < NUM_LEDS; index++){
-    g_LEDs[index] = pico8_palette[0];
+    g_LEDs[index] = pico8_palette[0];  
   }
 
   g_LEDs[63] = pico8_palette[0];
@@ -140,7 +184,7 @@ bool handleFileRead(String path) {
   if (path.endsWith("/")) path += "index.html";
   String contentType = getContentType(path);
   if (SPIFFS.exists(path)) {
-    File file = SPIFFS.open(path, "r");
+    File file = SPIFFS.open(path, "r"); 
     size_t sent = server.streamFile(file, contentType);
     if(path == "/save.html"){
       String sketch = server.arg("sketch");
