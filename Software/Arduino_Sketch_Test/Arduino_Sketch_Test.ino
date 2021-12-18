@@ -218,10 +218,12 @@ bool handleFileRead(String path) {
       if(validateSketch(sketch.c_str())){
         setLEDsWithSketch(sketch.c_str());
         FastLED.show();
+        server.send(200, "text/plain", "Sketch diplayed !");
         delay(5000);
       } else {
         Serial.println("Sketch invalid :");
         Serial.println(sketch);
+        server.send(500, "text/plain", "Error, sketch invalid !");
       }
       return true;
     }
@@ -232,11 +234,6 @@ bool handleFileRead(String path) {
       String fileName = server.arg("fileName");
 
       if(validateSketch(sketch.c_str())) {
-
-        char sketch_char[NUM_LEDS];
-        for (int i = 0; i < NUM_LEDS; i++) {
-          sketch_char[i] = sketch[i];
-        }
         char sketchSavePath[100];
         strcat(sketchSavePath, sketchDirPath);
         strcat(sketchSavePath, "/");
@@ -249,15 +246,19 @@ bool handleFileRead(String path) {
           file.close();
           Serial.print("File saved :");
           Serial.println(sketchSavePath);
+          setLEDsWithSketch(sketch.c_str());
+          FastLED.show();
+          setLEDsWithSketch(sketch.c_str());
+          server.send(200, "text/plain", "File saved !");
+          delay(5000);
         } else {
           Serial.println("Error opening file");
+          server.send(500, "text/plain", "Error, file not saved :(");
         }
-        setLEDsWithSketch(sketch.c_str());
-        FastLED.show();
-        delay(5000);
       } else {
         Serial.println("Sketch invalid :");
         Serial.println(sketch);
+        server.send(500, "text/plain", "Error, sketch invalid !");
       }
       return true;
     }
