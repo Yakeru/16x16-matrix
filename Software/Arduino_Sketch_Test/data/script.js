@@ -230,7 +230,7 @@ function httpGetDisplay(theUrl)
 
 function httpGetSave(theUrl)
 {
-  var fileName = document.getElementById("file_name").value;
+  var fileName = prompt("Quel nom veut-tu donner à ton dessin ?", "");
   fileName = fileName.trim().substring(0,50).replace(/[\W_]+/g,"");
 
   var xmlHttp = new XMLHttpRequest();

@@ -1,40 +1,37 @@
-.header, .menu, .boutton_menu, .content, .footer{
-  background-color: #F0F8FF;
-  width: 90%;
-  margin-left: 5%;
-  margin-right: 5%;
-
-  border-style: solid;
-  border-width: 2px;
-  border-radius: 10px;
-  margin-bottom: 5px;
-  padding: 5px;
+body {
+  font-family: Calibri, sans-serif;
+  background: #99ccff;
 }
 
-.file_name {
-  width: 100%;
+.header, .menu, .boutton_menu, .content, .footer{
+  background-color: white;
+  width: 90%;
+  margin-left: auto;
+  margin-right: auto;
+
+  border-radius: 10px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+
+  padding: 5px;
+  min-width: 520px;
+  max-width: 1024px;
 }
 
 .header {
   height: 10%;
   text-align: center;
-  background-color: #F0F8FF;
 }
 
 .menu {
   display: flex;
   flex-wrap: wrap;
-  margin-left: 5%;
-  margin-right: 5%;
-  margin-bottom: 5px;
-}
-
-.import {
-  margin: 5px;
-  height: 100px;
 }
 
 .boutton_menu {
+  min-width: 200px;
+  border-style: solid;
+  border-width: 1px;
   text-align: center;
   margin : 5px;
   width: auto;
@@ -42,8 +39,17 @@
 }
 
 .boutton_menu:hover {
-  background-color: #DCDCDC;
+  background-color: #99ccff;
   cursor: pointer;
+}
+
+.footer {
+  display: flex;
+}
+
+.import {
+  margin: 5px;
+  height: 100px;
 }
 
 .content {
@@ -68,8 +74,22 @@
   border-color: red;
 }
 
-#save_button {
-  margin: 5px;
+.footer button {
+  margin-left: 100px;
+  margin-right: 100px;
+  margin-top: 5px;
+  margin-bottom: 5px;
+  flex-grow: 1;
+}
+
+#delete_button {
+  flex-grow: 0;
+  background-color: red;
+  padding: 5px;
+  border-radius: 5px;
+  color: white;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 canvas {
