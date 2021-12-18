@@ -149,6 +149,7 @@ void loop() {
  *************************************************************************************/
 
 bool validateSketch(const char* sketch) {
+  Serial.println(sketch);
   if(strlen(sketch) != NUM_LEDS){
     Serial.print("Invalide length: ");
     Serial.println(strlen(sketch));
@@ -207,7 +208,9 @@ bool handleFileRead(String path) {
   if (SPIFFS.exists(path)) {
     File file = SPIFFS.open(path, "r"); 
     size_t sent = server.streamFile(file, contentType);
-
+    file.close();
+    return true;
+  } else {
 
     //Display sketch
     if(path == "/display.html"){
@@ -220,6 +223,7 @@ bool handleFileRead(String path) {
         Serial.println("Sketch invalid :");
         Serial.println(sketch);
       }
+      return true;
     }
 
     //Save sketch
@@ -244,9 +248,9 @@ bool handleFileRead(String path) {
           file.println(sketch.c_str());
           file.close();
           Serial.print("File saved :");
-          Serial.print(sketchSavePath);
+          Serial.println(sketchSavePath);
         } else {
-          Serial.print("Error opening file");
+          Serial.println("Error opening file");
         }
         setLEDsWithSketch(sketch.c_str());
         FastLED.show();
@@ -255,15 +259,14 @@ bool handleFileRead(String path) {
         Serial.println("Sketch invalid :");
         Serial.println(sketch);
       }
+      return true;
     }
 
     //List sketches
     if(path == "/list.html"){
-      
+      server.send(200, "text/plain", sketchDir.openNextFile().name());
+      return true;
     }
-    
-    file.close();
-    return true;
   }
   return false; // If the file doesn't exist, return false
 }

@@ -54,8 +54,8 @@ function init() {
   drawColorPalette();
 
   document.getElementById("fill_button").addEventListener("click", fill);
-  document.getElementById("save_button").addEventListener("click", httpSave);
-  document.getElementById("display_button").addEventListener("click", httpDisplay);
+  document.getElementById("save_button").addEventListener("click", httpGetSave);
+  document.getElementById("display_button").addEventListener("click", httpGetDisplay);
 }
 
 function initDrawingMatrix(paletteIndex) {
@@ -220,7 +220,7 @@ function fill() {
 //     xmlHttp.send(null);
 // }
 
-function httpDisplay(theUrl)
+function httpGetDisplay(theUrl)
 {
   var xmlHttp = new XMLHttpRequest();
   xmlHttp.open( "GET", "display.html?sketch=" + printDrawingMatrixForESP(), false ); // false for synchronous request
@@ -228,7 +228,7 @@ function httpDisplay(theUrl)
   return xmlHttp.responseText;
 }
 
-function httpSave(theUrl)
+function httpGetSave(theUrl)
 {
   var fileName = document.getElementById("file_name").value;
   fileName = fileName.trim().substring(0,50).replace(/[\W_]+/g,"");
@@ -237,6 +237,14 @@ function httpSave(theUrl)
   xmlHttp.open( "GET", "save.html?sketch=" + printDrawingMatrixForESP() + "&fileName=" + fileName, false ); // false for synchronous request
   xmlHttp.send( null );
   return xmlHttp.responseText;
+}
+
+function httpGetList(theUrl)
+{
+    var xmlHttp = new XMLHttpRequest();
+    xmlHttp.open( "GET", "list.html", false ); // false for synchronous request
+    xmlHttp.send( null );
+    return xmlHttp.responseText;
 }
 
 //*************************************************************************
