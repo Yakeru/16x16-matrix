@@ -19,25 +19,28 @@
 
     <div class="content">
 
+      <div class="file_name">
+        <br/>
+        Nom du dessin : <input type="text" id="file_name"></input>
+        <br/>
+        <br/>
+      </div>
+
       <div class="sprite">
-        <div>
-          <br/>
-          Nom du dessin : <input type="text"></input>
-          <br/>
-          <br/>
-        </div>
         <canvas  id="sprite" style="border:1px solid #000000;" width="500px" height="500px"></canvas>
       </div>
+
       <div class="drawingTools">
         <canvas id="palette" style="border:1px solid #000000;" width="160px" height="160px"></canvas>
         <div id="fill">
           Remplir: <button id="fill_button"></button>
         </div>
       </div>
+
     </div>
 
     <div class="footer">
-      <button id="display_button">Afficher</button>
+      <button id="display_button">Prévisualiser</button>
       <button id="save_button">Sauvegarder</button>
     </div>
   </body>

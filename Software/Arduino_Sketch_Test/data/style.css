@@ -11,6 +11,10 @@
   padding: 5px;
 }
 
+.file_name {
+  width: 100%;
+}
+
 .header {
   height: 10%;
   text-align: center;
@@ -23,6 +27,11 @@
   margin-left: 5%;
   margin-right: 5%;
   margin-bottom: 5px;
+}
+
+.import {
+  margin: 5px;
+  height: 100px;
 }
 
 .boutton_menu {

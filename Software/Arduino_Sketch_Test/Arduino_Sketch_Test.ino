@@ -3,6 +3,8 @@
 
 //File System
 #include "SPIFFS.h"
+const char* sketchDirPath = "/sketches";
+File sketchDir;
 
 //Fast LED
 #define NUM_LEDS 256
@@ -29,16 +31,36 @@ const CRGB pico8_palette[16] = {
 };
 
 
+const char index_html[] PROGMEM = R"rawliteral(
+<!DOCTYPE HTML><html><head>
+  <title>HTML Form to Input Data</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    html {font-family: Times New Roman; display: inline-block; text-align: center;}
+    h2 {font-size: 3.0rem; color: #FF0000;}
+  </style>
+  </head><body>
+  <h2>HTML Form to Input Data</h2> 
+  <form action="/get">
+    Enter a string: <input type="text" name="input_string">
+    <input type="submit" value="Submit">
+  </form><br>
+  <form action="/get">
+    Enter an integer: <input type="text" name="input_integer">
+    <input type="submit" value="Submit">
+  </form><br>
+  <form action="/get">
+    Enter a floating value: <input type="text" name="input_float">
+    <input type="submit" value="Submit">
+  </form>
+</body></html>)rawliteral";
+
+
 /**************************************************************************************
  *                                SETUP
  *************************************************************************************/
 
 void setup() {
-
-  //Turn built-in LED OFF
-//  pinMode(LED_BUILTIN, OUTPUT);
-//  bool bLED = 0;
-//  digitalWrite(LED_BUILTIN, bLED);
   
   //Serial setup
   Serial.begin(115200);
@@ -47,13 +69,12 @@ void setup() {
   Serial.printf("CPU freq. : %u\n",ESP.getCpuFreqMHz());
 
   //Mount file System
-  bool fsOk = false;
   if(!SPIFFS.begin())
   {
     Serial.println("SPIFFS Mount failed");
   } else {
     Serial.println("SPIFFS Mount succesfull");
-    fsOk = true;
+    sketchDir = SPIFFS.open(sketchDirPath);
   }
 
   //FastLED setup
@@ -87,38 +108,35 @@ void setup() {
  *************************************************************************************/
 
 bool playmode = true;
-const char* sketchDirPath = "/sketches";
-File sketchDir = SPIFFS.open(sketchDirPath);
+bool firstBoot = true;
 uint32_t lastImageShowedMillis = 0;
 uint8_t lastImageShowedIndex = 0;
 
 void loop() {
   server.handleClient();
   FastLED.show();
-  delay(5);
+  delay(10);
   
-  if(playmode && (millis() - lastImageShowedMillis >= 1000)) {
-
+  if(firstBoot || (playmode && (millis() - lastImageShowedMillis >= 5000)) ) {
+    firstBoot = false;
     File sketchFile = sketchDir.openNextFile();
-
     if(sketchFile) {
       Serial.print("Showing sketch: ");
       Serial.println(sketchFile.name());
       
       //array to store a sketch
-      //a sketch is maximum 758 chars
-      char sketch[758] = {' '};
+      //a sketch is 256 chars
+      char sketch[NUM_LEDS];
       char currentChar = ' ';
-  
       uint16_t sketchIndex = 0;
-      while(currentChar != '\n'){
+      while(sketchIndex < NUM_LEDS){
         currentChar = sketchFile.read();
         sketch[sketchIndex] = currentChar;
         sketchIndex++;
       }
-  
-      setLEDsWithSketch(&sketch[0]);
+      setLEDsWithSketch(sketch);
       lastImageShowedMillis = millis();
+      sketchFile.close();
     } else {
       sketchDir.close();
       sketchDir = SPIFFS.open(sketchDirPath);
@@ -130,33 +148,29 @@ void loop() {
  *                                TOOLS
  *************************************************************************************/
 
-void setLEDsWithSketch(String sketch) {
-  char p[sketch.length()];
-  for (int i = 0; i < sizeof(p); i++) {
-    p[i] = sketch[i];
+bool validateSketch(const char* sketch) {
+  if(strlen(sketch) != NUM_LEDS){
+    Serial.print("Invalide length: ");
+    Serial.println(strlen(sketch));
+    return false;
   }
-
-  Serial.println("setLEDsWithSketch: ");
-  Serial.println(p);
   
-  char *ptr = strtok(p, ",");
-  uint16_t ledIndex = 0;
-  while (ptr != NULL && ledIndex < NUM_LEDS)
-  {
-    g_LEDs[ledIndex] = pico8_palette[strtol(ptr, NULL, 10)];
-    ptr = strtok(NULL, ",");
-    ledIndex++;
+  for(int i = 0; i < NUM_LEDS; i++){
+    //Check if all values are between 0 and 15
+    if( (int)sketch[i]-65 < 0 || (int)sketch[i]-65 > 15 ){
+      Serial.print("Invalide character: ");
+      Serial.print(sketch[i]);
+      Serial.print(" , index: ");
+      Serial.println((int)sketch[i]-65);
+      return false;
+    }
   }
+  return true;
 }
 
-void setLEDsWithSketch(char* sketch) {
-  char *ptr = strtok(sketch, ",");
-  uint16_t ledIndex = 0;
-  while (ptr != NULL && ledIndex < NUM_LEDS)
-  {
-    g_LEDs[ledIndex] = pico8_palette[strtol(ptr, NULL, 10)];
-    ptr = strtok(NULL, ",");
-    ledIndex++;
+void setLEDsWithSketch(const char* sketch) {
+  for(int ledIndex = 0; ledIndex < NUM_LEDS; ledIndex++) {
+    g_LEDs[ledIndex] = pico8_palette[(int)sketch[ledIndex] - 65]; //-65 because ASCII code for A = 65 
   }
 }
 
@@ -187,18 +201,65 @@ void drawPalette() {
  *                                HTTP Server
  *************************************************************************************/
 bool handleFileRead(String path) {
-  //Serial.println("Requete reçue : " + path);
+  Serial.println("Requete reçue : " + path);
   if (path.endsWith("/")) path += "index.html";
   String contentType = getContentType(path);
   if (SPIFFS.exists(path)) {
     File file = SPIFFS.open(path, "r"); 
     size_t sent = server.streamFile(file, contentType);
-    
+
+
+    //Display sketch
     if(path == "/display.html"){
       String sketch = server.arg("sketch");
-      Serial.print("Sketch reçu : ");
-      Serial.println(sketch);
-      setLEDsWithSketch(sketch);
+      if(validateSketch(sketch.c_str())){
+        setLEDsWithSketch(sketch.c_str());
+        FastLED.show();
+        delay(5000);
+      } else {
+        Serial.println("Sketch invalid :");
+        Serial.println(sketch);
+      }
+    }
+
+    //Save sketch
+    if(path == "/save.html"){
+      String sketch = server.arg("sketch");
+      String fileName = server.arg("fileName");
+
+      if(validateSketch(sketch.c_str())) {
+
+        char sketch_char[NUM_LEDS];
+        for (int i = 0; i < NUM_LEDS; i++) {
+          sketch_char[i] = sketch[i];
+        }
+        char sketchSavePath[100];
+        strcat(sketchSavePath, sketchDirPath);
+        strcat(sketchSavePath, "/");
+        strcat(sketchSavePath, fileName.c_str());
+        strcat(sketchSavePath, ".txt");
+              
+        File file = SPIFFS.open(sketchSavePath, FILE_WRITE);
+        if(file){
+          file.println(sketch.c_str());
+          file.close();
+          Serial.print("File saved :");
+          Serial.print(sketchSavePath);
+        } else {
+          Serial.print("Error opening file");
+        }
+        setLEDsWithSketch(sketch.c_str());
+        FastLED.show();
+        delay(5000);
+      } else {
+        Serial.println("Sketch invalid :");
+        Serial.println(sketch);
+      }
+    }
+
+    //List sketches
+    if(path == "/list.html"){
+      
     }
     
     file.close();

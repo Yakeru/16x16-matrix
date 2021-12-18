@@ -54,7 +54,8 @@ function init() {
   drawColorPalette();
 
   document.getElementById("fill_button").addEventListener("click", fill);
-  document.getElementById("save_button").addEventListener("click", httpGet);
+  document.getElementById("save_button").addEventListener("click", httpSave);
+  document.getElementById("display_button").addEventListener("click", httpDisplay);
 }
 
 function initDrawingMatrix(paletteIndex) {
@@ -169,7 +170,6 @@ function draw(){
         && y < square_y + square_height) {
           if(log) console.log("    Column : " + column_count + " , Row : " + row_count);
           drawingMatrix[column_count][row_count] = selectedPaletteIndex;
-          if(log) printDrawingMatrix();
           spriteContext.clearRect(square_x, square_y, square_width, square_height);
           spriteContext.fillRect(square_x, square_y, square_width, square_height);
           spriteContext.strokeRect(square_x, square_y, square_width, square_height);
@@ -209,10 +209,6 @@ function fill() {
   if(log) printDrawingMatrix();
 }
 
-function save_sketch() {
-  if(log) console.log("Save click !");
-}
-
 // function httpGetAsync(theUrl, callback)
 // {
 //     var xmlHttp = new XMLHttpRequest();
@@ -224,12 +220,23 @@ function save_sketch() {
 //     xmlHttp.send(null);
 // }
 
-function httpGet(theUrl)
+function httpDisplay(theUrl)
 {
-    var xmlHttp = new XMLHttpRequest();
-    xmlHttp.open( "GET", "save.html?sketch=" + printDrawingMatrixForESP(), false ); // false for synchronous request
-    xmlHttp.send( null );
-    return xmlHttp.responseText;
+  var xmlHttp = new XMLHttpRequest();
+  xmlHttp.open( "GET", "display.html?sketch=" + printDrawingMatrixForESP(), false ); // false for synchronous request
+  xmlHttp.send( null );
+  return xmlHttp.responseText;
+}
+
+function httpSave(theUrl)
+{
+  var fileName = document.getElementById("file_name").value;
+  fileName = fileName.trim().substring(0,50).replace(/[\W_]+/g,"");
+
+  var xmlHttp = new XMLHttpRequest();
+  xmlHttp.open( "GET", "save.html?sketch=" + printDrawingMatrixForESP() + "&fileName=" + fileName, false ); // false for synchronous request
+  xmlHttp.send( null );
+  return xmlHttp.responseText;
 }
 
 //*************************************************************************
@@ -242,18 +249,6 @@ function rgbToHex(r, g, b) {
   return ((r << 16) | (g << 8) | b).toString(16);
 }
 
-//pretty print for debug console
-function printDrawingMatrix() {
-  let text = "";
-  for (var y = 0; y < editor_height_px; y++) {
-    for (var x = 0; x < editor_width_px; x++) {
-      text += drawingMatrix[x][y] + "|";
-    }
-    text += "\n";
-  }
-  console.log(text);
-}
-
 //ESP displays from bottom to top row.
 //Row 15 from left to right
 //Row 14 from right to left
@@ -264,13 +259,13 @@ function printDrawingMatrixForESP() {
     //for even rows go right to left
     if(y % 2  == 0) {
       for (var x = editor_width_px - 1; x >= 0; x--) {
-        text += drawingMatrix[x][y] + ",";
+        text += String.fromCharCode(drawingMatrix[x][y] + 65);
       }
 
     } else {
       //for odd rows, go left to right
       for (var x = 0; x < editor_width_px; x++) {
-        text += drawingMatrix[x][y] + ",";
+        text += String.fromCharCode(drawingMatrix[x][y] + 65);
       }
     }
   }
