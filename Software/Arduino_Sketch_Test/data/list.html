@@ -1,29 +1,22 @@
 <!DOCTYPE html>
 <html>
-  <!-- HEAD -->
+  <script type="text/javascript" src="script.js"></script>
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <link rel="stylesheet" href="style.css">
     <title>Tonton Damien's super pixel-art editor !!!</title>
   </head>
-
-  <!-- BODY -->
   <body onload="listFiles()">
-
     <div class="header"><h1>Le tableau magique de tonton Damien</h1></div>
-
     <div class="menu">
       <div class="boutton_menu" id="draw"><a href="index.html">Dessiner</a></div>
       <div class="boutton_menu" id="list"><a href="list.html">Configuration du WiFi</a></div>
     </div>
-
-    <div class="content">
-
+    <div class="content" id="content">
+      <img class="loader" id="loader" alt="Patience, ça charge ..." src="loading.gif" />
     </div>
-
     <div class="footer">
       <button id="delete_button">Supprimer</button>
     </div>
-
   </body>
 </html>

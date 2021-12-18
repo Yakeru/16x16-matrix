@@ -1,14 +1,16 @@
 #include <Arduino.h>
 #include <string.h>
+//#include <ESPPerfectTime.h>
 
 //File System
 #include "SPIFFS.h"
-const char* sketchDirPath = "/sketches";
+const char* sketchDirPath = "/imgs";
 File sketchDir;
 
 //Fast LED
 #define NUM_LEDS 256
 #define LED_PIN 22
+#define FASTLED_INTERNAL //remove error message about undefined SPI Pins
 #include <FastLED.h>
 CRGB g_LEDs[NUM_LEDS] = {0};
 
@@ -30,31 +32,8 @@ const CRGB pico8_palette[16] = {
   CHSV(HUE_BLUE, 130, 255),   CHSV(HUE_PURPLE,120,200),   CHSV(HUE_PINK,150,255),     CHSV(HUE_ORANGE, 160, 255)
 };
 
-
-const char index_html[] PROGMEM = R"rawliteral(
-<!DOCTYPE HTML><html><head>
-  <title>HTML Form to Input Data</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    html {font-family: Times New Roman; display: inline-block; text-align: center;}
-    h2 {font-size: 3.0rem; color: #FF0000;}
-  </style>
-  </head><body>
-  <h2>HTML Form to Input Data</h2> 
-  <form action="/get">
-    Enter a string: <input type="text" name="input_string">
-    <input type="submit" value="Submit">
-  </form><br>
-  <form action="/get">
-    Enter an integer: <input type="text" name="input_integer">
-    <input type="submit" value="Submit">
-  </form><br>
-  <form action="/get">
-    Enter a floating value: <input type="text" name="input_float">
-    <input type="submit" value="Submit">
-  </form>
-</body></html>)rawliteral";
-
+//RTC
+//const char *ntpServer = "fr.pool.ntp.org";
 
 /**************************************************************************************
  *                                SETUP
@@ -101,6 +80,11 @@ void setup() {
   });
   server.begin();
   Serial.println("HTTP server Running on port 80");
+
+  //RTC
+//  pftime::configTzTime(PSTR("CET-1CEST,M3.5.0,M10.5.0/3"), ntpServer);
+//  struct tm *tm = pftime::localtime(nullptr);
+//  printTime(tm);
 }
 
 /**************************************************************************************
@@ -117,7 +101,7 @@ void loop() {
   FastLED.show();
   delay(10);
   
-  if(firstBoot || (playmode && (millis() - lastImageShowedMillis >= 5000)) ) {
+  if(firstBoot || (playmode && (millis() - lastImageShowedMillis >= 60000)) ) {
     firstBoot = false;
     File sketchFile = sketchDir.openNextFile();
     if(sketchFile) {
@@ -138,8 +122,7 @@ void loop() {
       lastImageShowedMillis = millis();
       sketchFile.close();
     } else {
-      sketchDir.close();
-      sketchDir = SPIFFS.open(sketchDirPath);
+      sketchDir = SPIFFS.open(sketchDirPath); //Re-open to start listing files from beginning
     }
   }
 }
@@ -211,7 +194,6 @@ bool handleFileRead(String path) {
     file.close();
     return true;
   } else {
-
     //Display sketch
     if(path == "/display.html"){
       String sketch = server.arg("sketch");
@@ -234,12 +216,13 @@ bool handleFileRead(String path) {
       String fileName = server.arg("fileName");
 
       if(validateSketch(sketch.c_str())) {
-        char sketchSavePath[100];
+        char sketchSavePath[31];
         strcat(sketchSavePath, sketchDirPath);
         strcat(sketchSavePath, "/");
         strcat(sketchSavePath, fileName.c_str());
         strcat(sketchSavePath, ".txt");
-              
+        Serial.print("Saving to : ");
+        Serial.println(sketchSavePath);      
         File file = SPIFFS.open(sketchSavePath, FILE_WRITE);
         if(file){
           file.println(sketch.c_str());
@@ -264,8 +247,31 @@ bool handleFileRead(String path) {
     }
 
     //List sketches
-    if(path == "/list.html"){
-      server.send(200, "text/plain", sketchDir.openNextFile().name());
+    if(path == "/getList.html"){
+      String response;
+      sketchDir = SPIFFS.open(sketchDirPath);
+      File sketchFile = sketchDir.openNextFile();
+      while(sketchFile) {
+        Serial.print("Getting file ");
+        Serial.println(sketchFile.name());
+        response += sketchFile.name();
+        response += ",";
+        //array to store a sketch
+        //a sketch is 256 chars
+        char sketch[NUM_LEDS];
+        char currentChar = ' ';
+        uint16_t sketchIndex = 0;
+        while(sketchIndex < NUM_LEDS){
+          currentChar = sketchFile.read();
+          sketch[sketchIndex] = currentChar;
+          sketchIndex++;
+        }
+        response += sketch;
+        response += "|";
+        sketchFile = sketchDir.openNextFile();
+      }
+      
+      server.send(200, "text/plain", response);
       return true;
     }
   }
@@ -278,4 +284,14 @@ String getContentType(String filename){
   else if(filename.endsWith(".css")) return "text/css";
   else if(filename.endsWith(".js")) return "application/javascript";
   return "text/plain";
+}
+
+void printTime(struct tm *tm) {
+  Serial.printf("%04d/%02d/%02d %02d:%02d:%02d\n",
+                tm->tm_year + 1900,
+                tm->tm_mon + 1,
+                tm->tm_mday,
+                tm->tm_hour,
+                tm->tm_min,
+                tm->tm_sec);
 }

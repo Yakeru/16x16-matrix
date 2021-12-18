@@ -99,3 +99,12 @@ canvas {
 #palette {
   cursor: pointer;
 }
+
+.loader {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.thumbnail {
+   flex-grow: 0;
+}
