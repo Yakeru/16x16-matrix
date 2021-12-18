@@ -58,34 +58,6 @@ function init() {
   document.getElementById("display_button").addEventListener("click", httpGetDisplay);
 }
 
-function listFiles() {
-  var xmlHttp = new XMLHttpRequest();
-  xmlHttp.open( "GET", "getList.html", false ); // false for synchronous request
-  xmlHttp.send( null );
-
-  let response = xmlHttp.responseText;
-  document.getElementById("loader").style.display = "none";
-
-  if(response.includes('|')) {
-    const sketchList = response.split("|");
-
-    for (let sketchIndex in sketchList) {
-      if(sketchList[sketchIndex].includes(',')) {
-        const sketchData = sketchList[sketchIndex].split(",");
-          generateThumbnailHtml(sketchData[0],sketchData[1]);
-      }
-    }
-  }
-}
-
-function initDrawingMatrix(paletteIndex) {
-  for (var x = 0; x < editor_width_px; x++) {
-    for (var y = 0; y < editor_height_px; y++) {
-      drawingMatrix[x][y] = paletteIndex;
-    }
-  }
-}
-
 //Draw black squares and white borders
 //to show an empty pixel grid
 function drawSpriteGrid(color) {
@@ -105,59 +77,6 @@ function drawSpriteGrid(color) {
         spriteContext.strokeStyle = "Black";
       spriteContext.fillRect(square_x, square_y, square_width, square_height);
       spriteContext.strokeRect(square_x, square_y, square_width, square_height);
-    }
-  }
-}
-
-function generateThumbnailHtml(fileName, sketchString) {
-  let displayName = fileName.replace("/imgs/", "").replace(".txt", "");
-  let contentDiv = document.getElementById('content');
-  let thumbnailDiv = document.createElement('div');
-  thumbnailDiv.className = "thumbnail";
-  let check = document.createElement("input");
-  check.type = "checkBox";
-  check.id = fileName;
-  let canvas = document.createElement('canvas');
-  canvas.id = "canvas_" + displayName;
-  canvas.width = 64;
-  canvas.height = 64;
-  canvas.style.border = "1px solid";
-
-  thumbnailDiv.appendChild(check);
-  thumbnailDiv.appendChild(document.createTextNode(displayName));
-  thumbnailDiv.appendChild(document.createElement('br'));
-  thumbnailDiv.appendChild(canvas);
-  contentDiv.appendChild(thumbnailDiv);
-
-  renderThumbail(sketchString, canvas.id);
-}
-
-function renderThumbail(sketchString, canvasId) {
-  let canvas = document.getElementById(canvasId);
-  let thumbContext = canvas.getContext("2d");
-  let spriteWidth = thumbContext.canvas.clientWidth;
-  let spriteHeight = thumbContext.canvas.clientHeight;
-  let square_width = spriteWidth/editor_width_px;
-  let square_height = spriteHeight/editor_height_px;
-  let pixelIndex = 0;
-
-  for(row_count = editor_height_px - 1 ; row_count >= 0 ; row_count--) {
-    if(row_count % 2 == 0) {
-      for(column_count = editor_width_px - 1 ; column_count >= 0 ; column_count--) {
-        let square_x = square_width*column_count;
-        let square_y = square_height*row_count;
-        thumbContext.fillStyle = palette[sketchString.charCodeAt(pixelIndex) - 65];
-        thumbContext.fillRect(square_x, square_y, square_width, square_height);
-        pixelIndex++;
-      }
-    } else {
-      for(column_count = 0 ; column_count < editor_width_px ; column_count++) {
-        let square_x = square_width*column_count;
-        let square_y = square_height*row_count;
-        thumbContext.fillStyle = palette[sketchString.charCodeAt(pixelIndex) - 65];
-        thumbContext.fillRect(square_x, square_y, square_width, square_height);
-        pixelIndex++;
-      }
     }
   }
 }
@@ -282,16 +201,14 @@ function fill() {
   if(log) printDrawingMatrix();
 }
 
-function httpGetDisplay(theUrl)
-{
+function httpGetDisplay(theUrl) {
   var xmlHttp = new XMLHttpRequest();
   xmlHttp.open( "GET", "display.html?sketch=" + printDrawingMatrixForESP(), false ); // false for synchronous request
   xmlHttp.send( null );
   return xmlHttp.responseText;
 }
 
-function httpGetSave(theUrl)
-{
+function httpGetSave(theUrl) {
   var fileName = prompt("Quel nom veux-tu donner à ton dessin ?", "");
   if(fileName != null) {
     fileName = fileName.trim().replace(/[\W_]+/g,"").substring(0,20);
