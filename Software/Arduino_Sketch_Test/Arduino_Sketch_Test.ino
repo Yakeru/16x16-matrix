@@ -274,6 +274,29 @@ bool handleFileRead(String path) {
       server.send(200, "text/plain", response);
       return true;
     }
+
+    //Delete sketches
+    if(path == "/delete.html"){
+      sketchDir.close();
+      String sketchListToDelete = server.arg("sketchlist");
+      char sketchChar[sizeof(sketchListToDelete.c_str())];
+      for(int i = 0; i < sizeof(sketchListToDelete.c_str()); i++) {
+        sketchChar[i] = sketchListToDelete.c_str()[i];
+      }
+      char* fileName = strtok_r(&sketchChar, ',');
+      while( fileName != NULL ) {
+        String filePath = "/imgs/";
+        filePath += fileName;
+        filePath += ".txt";
+        Serial.print("Deleting : ");
+        Serial.println(fileName);
+        SPIFFS.remove("/test.txt");
+        fileName = strtok_r(NULL, ',');
+      }
+      sketchDir = SPIFFS.open(sketchDirPath);
+      server.send(200, "text/plain", "Ok");
+      return true;
+    }
   }
   return false; // If the file doesn't exist, return false
 }

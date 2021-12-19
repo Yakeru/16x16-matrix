@@ -16,6 +16,14 @@ for (var i = 0; i < editor_width_px; i++) {
   drawingMatrix[i] = new Array(editor_height_px);
 }
 
+function initDrawingMatrix(paletteIndex) {
+  for (var x = 0; x < editor_width_px; x++) {
+    for (var y = 0; y < editor_height_px; y++) {
+      drawingMatrix[x][y] = paletteIndex;
+    }
+  }
+}
+
 let spriteCanvas;
 let spriteContext;
 

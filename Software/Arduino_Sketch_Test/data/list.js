@@ -3,8 +3,13 @@ const palette = ["#000000","#1D2B53","#7E2553","#008751",
                "#FF004D","#FFA300","#FFEC27","#00E436",
                "#29ADFF","#83769C","#FF77A8","#FFCCAA"]
 
+//Sprite canvas pixel size 16x16
+const editor_width_px=16;
+const editor_height_px=16;
+
 function init() {
   document.getElementById("delete_button").addEventListener("click", httpGetDelete);
+  listFiles();
 }
 
 function listFiles() {
@@ -23,14 +28,6 @@ function listFiles() {
         const sketchData = sketchList[sketchIndex].split(",");
           generateThumbnailHtml(sketchData[0],sketchData[1]);
       }
-    }
-  }
-}
-
-function initDrawingMatrix(paletteIndex) {
-  for (var x = 0; x < editor_width_px; x++) {
-    for (var y = 0; y < editor_height_px; y++) {
-      drawingMatrix[x][y] = paletteIndex;
     }
   }
 }
@@ -88,13 +85,15 @@ function renderThumbail(sketchString, canvasId) {
   }
 }
 
-funvtion httpGetDelete(theUrl) {
+function httpGetDelete(theUrl) {
   //Get the list of all the checked checkBoxes
   let allCheckBoxes = document.getElementsByTagName("input");
   let files = "";
   for(checkBoxIndex in allCheckBoxes) {
     let checkBox = allCheckBoxes[checkBoxIndex];
-    files += checkBox.id + ",";
+    if(checkBox.type == "checkbox" && checkBox.checked) {
+      files += checkBox.id + ",";
+    }
   }
 
   //Send the query
