@@ -278,21 +278,25 @@ bool handleFileRead(String path) {
     //Delete sketches
     if(path == "/delete.html"){
       sketchDir.close();
-      String sketchListToDelete = server.arg("sketchlist");
-      char sketchChar[sizeof(sketchListToDelete.c_str())];
-      for(int i = 0; i < sizeof(sketchListToDelete.c_str()); i++) {
-        sketchChar[i] = sketchListToDelete.c_str()[i];
+      String sketchListHttp = server.arg("sketchlist");
+
+      char sketchList[sketchListHttp.length()];
+      for (int i = 0; i < sizeof(sketchList); i++) {
+        sketchList[i] = sketchListHttp[i];
       }
-      char* fileName = strtok_r(&sketchChar, ',');
-      while( fileName != NULL ) {
+
+      char *fileName = strtok(sketchList, ",");
+      while (fileName != NULL)
+      {
         String filePath = "/imgs/";
         filePath += fileName;
         filePath += ".txt";
         Serial.print("Deleting : ");
         Serial.println(fileName);
         SPIFFS.remove("/test.txt");
-        fileName = strtok_r(NULL, ',');
+        fileName = strtok(NULL, ',');
       }
+
       sketchDir = SPIFFS.open(sketchDirPath);
       server.send(200, "text/plain", "Ok");
       return true;
