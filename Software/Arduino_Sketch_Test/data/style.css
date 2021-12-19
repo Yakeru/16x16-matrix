@@ -82,6 +82,14 @@ body {
   flex-grow: 1;
 }
 
+.footer input {
+  margin-left: 100px;
+  margin-right: 100px;
+  margin-top: 5px;
+  margin-bottom: 5px;
+  flex-grow: 1;
+}
+
 #delete_button {
   flex-grow: 0;
   background-color: red;
@@ -107,4 +115,12 @@ canvas {
 
 .thumbnail {
    flex-grow: 0;
+}
+
+.formInput {
+  margin: 5px;
+}
+
+.sprite {
+  width: 100%;
 }

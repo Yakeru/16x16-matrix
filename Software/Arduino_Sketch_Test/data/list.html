@@ -9,11 +9,10 @@
   <body onload="init()">
     <div class="header"><h1>Le tableau magique de tonton Damien</h1></div>
     <div class="menu">
-      <div class="boutton_menu" id="draw"><a href="index.html">Dessiner</a></div>
-      <div class="boutton_menu" id="list"><a href="list.html">Configuration du WiFi</a></div>
+      <button class="boutton_menu" id="list" onclick="window.location.href='index.html';">Dessiner</button>
+      <button class="boutton_menu" id="list" onclick="window.location.href='config.html';">Configuration</button>
     </div>
     <div class="content" id="content">
-      <img class="loader" id="loader" alt="Patience, ça charge ..." src="loading.gif" />
     </div>
     <div class="footer">
       <button id="delete_button">Supprimer</button>

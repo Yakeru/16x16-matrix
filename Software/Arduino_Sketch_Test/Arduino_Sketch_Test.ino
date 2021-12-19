@@ -1,6 +1,14 @@
 #include <Arduino.h>
 #include <string.h>
+#include <EEPROM.h>
 //#include <ESPPerfectTime.h>
+#define EEPROM_SIZE 2
+
+//PINS Config
+#define LED_PIN 22
+#define BR_PLUS_PIN 23
+#define BR_MINUS_PIN 21
+#define POWER_SW 19
 
 //File System
 #include "SPIFFS.h"
@@ -9,16 +17,14 @@ File sketchDir;
 
 //Fast LED
 #define NUM_LEDS 256
-#define LED_PIN 22
 #define FASTLED_INTERNAL //remove error message about undefined SPI Pins
 #include <FastLED.h>
 CRGB g_LEDs[NUM_LEDS] = {0};
+uint8_t brightness = 50;
 
 //WiFi and Web
 #include <WiFi.h>
 #include <WiFiClient.h>
-const char* ssid = "ZORGLUB";
-const char* passwd = "Vive la Bretagne !";
 
 //WebServer
 #include <WebServer.h>
@@ -32,6 +38,17 @@ const CRGB pico8_palette[16] = {
   CHSV(HUE_BLUE, 130, 255),   CHSV(HUE_PURPLE,120,200),   CHSV(HUE_PINK,150,255),     CHSV(HUE_ORANGE, 160, 255)
 };
 
+const int refreshRateValues[6] = {
+  1000,
+  5000,
+  10000,
+  30000,
+  60000,
+  300000
+};
+
+int refreshRateIndex = 2;
+
 //RTC
 //const char *ntpServer = "fr.pool.ntp.org";
 
@@ -40,7 +57,17 @@ const CRGB pico8_palette[16] = {
  *************************************************************************************/
 
 void setup() {
-  
+
+  EEPROM.begin(EEPROM_SIZE);
+  brightness = EEPROM.read(0);
+  refreshRateIndex = EEPROM.read(1);
+
+  //PINS
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(BR_PLUS_PIN, INPUT);
+  pinMode(BR_MINUS_PIN, INPUT);
+  pinMode(POWER_SW, INPUT);
+
   //Serial setup
   Serial.begin(115200);
   while(!Serial){};
@@ -57,20 +84,15 @@ void setup() {
   }
 
   //FastLED setup
-  pinMode(LED_PIN, OUTPUT);
+  
   FastLED.addLeds<WS2812B, LED_PIN, GRB>(g_LEDs, NUM_LEDS);
   FastLED.setCorrection(LEDColorCorrection::TypicalLEDStrip);
   FastLED.setTemperature(ColorTemperature::HighNoonSun);
-  FastLED.setBrightness(50);
+  FastLED.setBrightness(brightness);
 
-  //Station mode STA
-  WiFi.begin(ssid, passwd);
-  while(WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.print("Connected to WiFi with IP : ");
-  Serial.println(WiFi.localIP());
+  //Station mode AP
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP("Cadre Magique", "Vive la Bretagne !", true, 1);
 
   //Http Server
   server.onNotFound([]() { 
@@ -96,12 +118,91 @@ bool firstBoot = true;
 uint32_t lastImageShowedMillis = 0;
 uint8_t lastImageShowedIndex = 0;
 
+int maxPower = 1500;
+int minPower = 100;
+
+//buttons
+unsigned long debounceDelay = 50;
+int lastPlusState = LOW;
+int lastMinusState = LOW;
+int plusState = LOW;
+int minusState = LOW;
+unsigned long lastPlusDebounceTime = 0;
+unsigned long lastMinusDebounceTime = 0;
+
 void loop() {
+  
+  //Brightness buttons
+  int plusRead = digitalRead(BR_PLUS_PIN);
+  int minusRead = digitalRead(BR_MINUS_PIN);
+  
+  if (plusRead != lastPlusState) {
+    lastPlusDebounceTime = millis();
+  }
+
+  if (minusRead != lastMinusState) {
+    lastMinusDebounceTime = millis();
+  }
+
+  if ((millis() - lastPlusDebounceTime) > debounceDelay) {
+    if (plusRead != plusState) {
+      plusState = plusRead;
+      if (plusState == HIGH) {
+        Serial.println("Brightness +");
+        if(brightness >= 245) {
+          brightness = 255;
+        } else {
+          brightness += 10;
+        }
+
+        //save selected brightness to eeprom ( flash)
+        EEPROM.write(0, brightness);
+        EEPROM.commit();
+      }
+    }
+  }
+
+  if ((millis() - lastMinusDebounceTime) > debounceDelay) {
+    if (minusRead != minusState) {
+      minusState = minusRead;
+      if (minusState == HIGH) {
+        Serial.println("Brightness -");
+        if(brightness <= 10) {
+          brightness = 0;
+        } else {
+          brightness -= 10;
+        }
+
+        //save selected brightness to eeprom ( flash)
+        EEPROM.write(0, brightness);
+        EEPROM.commit();
+      }
+    }
+  }
+  
+  lastPlusState = plusRead;
+  lastMinusState = minusRead;
+
+  int powerPlugged = digitalRead(POWER_SW);
+  
+  //Limit brightness if power isn't plugged (working only on USB)
+  if ( powerPlugged == HIGH ) {
+    brightness = calculate_max_brightness_for_power_vmA(g_LEDs, NUM_LEDS, brightness, 5, maxPower); 
+  } else {
+    brightness = calculate_max_brightness_for_power_vmA(g_LEDs, NUM_LEDS, brightness, 5, minPower); 
+  }
+  
+  
+
+  //HTTP Server
   server.handleClient();
+  
+  //Display
+  FastLED.setBrightness(brightness);
   FastLED.show();
   delay(10);
   
-  if(firstBoot || (playmode && (millis() - lastImageShowedMillis >= 60000)) ) {
+  if(firstBoot || (playmode && (millis() - lastImageShowedMillis >= refreshRateValues[refreshRateIndex])) ) {
     firstBoot = false;
     File sketchFile = sketchDir.openNextFile();
     if(sketchFile) {
@@ -278,27 +379,37 @@ bool handleFileRead(String path) {
     //Delete sketches
     if(path == "/delete.html"){
       sketchDir.close();
-      String sketchListHttp = server.arg("sketchlist");
-
-      char sketchList[sketchListHttp.length()];
-      for (int i = 0; i < sizeof(sketchList); i++) {
-        sketchList[i] = sketchListHttp[i];
-      }
-
-      char *fileName = strtok(sketchList, ",");
-      while (fileName != NULL)
-      {
-        String filePath = "/imgs/";
-        filePath += fileName;
-        filePath += ".txt";
-        Serial.print("Deleting : ");
-        Serial.println(fileName);
-        SPIFFS.remove("/test.txt");
-        fileName = strtok(NULL, ',');
-      }
+      String sketchNameHttp = server.arg("sketchName");
+      Serial.println(sketchNameHttp);
+ 
+      String filePath = "/imgs/";
+      filePath += sketchNameHttp;
+      filePath += ".txt";
+      Serial.print("Deleting : ");
+      Serial.println(filePath);
+      SPIFFS.remove(filePath);
 
       sketchDir = SPIFFS.open(sketchDirPath);
       server.send(200, "text/plain", "Ok");
+      return true;
+    }
+
+    //Save config
+    if(path == "/saveconfig.html"){
+      String tempo = server.arg("tempo");
+      refreshRateIndex = atoi(tempo.c_str());
+      
+      //save selected refresh to eeprom ( flash)
+      EEPROM.write(1, refreshRateIndex);
+      EEPROM.commit();
+        
+      String response = "<!DOCTYPE html><head><meta http-equiv='Content-Type' content='text/html; charset=utf-8'/><html><body>";
+      response += "Configuration appliquée...<br/><br/>";
+      response += "Adresse IP du tableau magique :";
+      response += "192.168.4.1";
+      response += "<br/><br/>";
+      response += "<a href='index.html'>Retour à la page d'acceuil<a></body></html>";
+      server.send(200, "text/html", response);
       return true;
     }
   }

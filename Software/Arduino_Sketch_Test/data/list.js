@@ -13,13 +13,22 @@ function init() {
 }
 
 function listFiles() {
+
+  //delete previous content
+  let contentDiv = document.getElementById('content');
+  contentDiv.textContent = '';
+  contentDiv.innerHTML = "<img class=\"loader\" id=\"loader\" alt=\"Patience, ça charge ...\" src=\"loading.gif\" />";
+  document.getElementById("loader").style.display = "block";
+
+  //query server
   var xmlHttp = new XMLHttpRequest();
   xmlHttp.open( "GET", "getList.html", false ); // false for synchronous request
   xmlHttp.send( null );
-
   let response = xmlHttp.responseText;
+
   document.getElementById("loader").style.display = "none";
 
+  //parse response and render thumbnails
   if(response.includes('|')) {
     const sketchList = response.split("|");
 
@@ -85,20 +94,19 @@ function renderThumbail(sketchString, canvasId) {
   }
 }
 
-function httpGetDelete(theUrl) {
+function httpGetDelete() {
   //Get the list of all the checked checkBoxes
   let allCheckBoxes = document.getElementsByTagName("input");
   let files = "";
   for(checkBoxIndex in allCheckBoxes) {
     let checkBox = allCheckBoxes[checkBoxIndex];
     if(checkBox.type == "checkbox" && checkBox.checked) {
-      files += checkBox.id + ",";
+      //Send the query
+      var xmlHttp = new XMLHttpRequest();
+      xmlHttp.open( "GET", "delete.html?sketchName=" + checkBox.id, false ); // false for synchronous request
+      xmlHttp.send( null );
     }
   }
 
-  //Send the query
-  var xmlHttp = new XMLHttpRequest();
-  xmlHttp.open( "GET", "delete.html?sketchlist=" + files, false ); // false for synchronous request
-  xmlHttp.send( null );
-  return xmlHttp.responseText;
+  listFiles();
 }

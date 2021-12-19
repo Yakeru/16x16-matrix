@@ -9,11 +9,25 @@
   <body>
     <div class="header"><h1>Le tableau magique de tonton Damien</h1></div>
     <div class="menu">
-      <div class="boutton_menu" id="draw"><a href="index.html">Dessiner</a></div>
-      <div class="boutton_menu" id="list"><a href="list.html">Gérer les dessins enregistrés</a></div>
+      <button class="boutton_menu" id="list" onclick="window.location.href='index.html';">Dessiner</button>
+      <button class="boutton_menu" id="list" onclick="window.location.href='list.html';">Gérer les dessins enregistrés</button>
     </div>
+    <form id="configuration" action="saveconfig.html"  method="post">
     <div class="content">
-      hmmm ... cette page n'auraut pas dû s'afficher normalement !
+      <!--<div class="formInput">SSID WiFi : <input type="text" id="ssid" name="ssid"></input></div>-->
+      <!--<div class="formInput">Mot de passe WiFi : <input type="password" id="pass" name="pass"></input></div>-->
+      <div class="formInput">Délai entre les images : <select name="tempo" id="tempo">
+        <option value="0">1 seconde</option>
+        <option value="1">5 secondes</option>
+        <option value="2">10 secondes</option>
+        <option value="3">30 secondes</option>
+        <option value="4">1 minute</option>
+        <option value="5">5 minutes</option>
+      </select></div>
     </div>
+    <div class="footer">
+      <input id="save_button" type="submit" value="Appliquer"/>
+    </div>
+    </form>
   </body>
 </html>
