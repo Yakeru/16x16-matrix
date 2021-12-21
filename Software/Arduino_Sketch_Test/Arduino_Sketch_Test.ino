@@ -1,8 +1,9 @@
-#include <Arduino.h>
-#include <string.h>
-#include <EEPROM.h>
-//#include <ESPPerfectTime.h>
+//General
 #define EEPROM_SIZE 2
+
+//Fast LED
+#define NUM_LEDS 256
+#define FASTLED_INTERNAL
 
 //PINS Config
 #define LED_PIN 22
@@ -10,24 +11,24 @@
 #define BR_MINUS_PIN 21
 #define POWER_SW 19
 
-//File System
+#include <Arduino.h>
+#include <string.h>
+#include <EEPROM.h>
+#include <FastLED.h>
+#include <WiFiManager.h>
 #include "SPIFFS.h"
+#include <WebServer.h>
+
+//File System
 const char* sketchDirPath = "/imgs";
 File sketchDir;
 
-//Fast LED
-#define NUM_LEDS 256
-#define FASTLED_INTERNAL //remove error message about undefined SPI Pins
-#include <FastLED.h>
+//FastLED
 CRGB g_LEDs[NUM_LEDS] = {0};
 uint8_t brightness = 50;
-
-//WiFi and Web
-#include <WiFi.h>
-#include <WiFiClient.h>
+uint8_t desiredBrightness = 50;
 
 //WebServer
-#include <WebServer.h>
 WebServer server(80);
 
 //Pico-8 inspired color palette
@@ -48,9 +49,6 @@ const int refreshRateValues[6] = {
 };
 
 int refreshRateIndex = 2;
-
-//RTC
-//const char *ntpServer = "fr.pool.ntp.org";
 
 /**************************************************************************************
  *                                SETUP
@@ -90,10 +88,18 @@ void setup() {
   FastLED.setTemperature(ColorTemperature::HighNoonSun);
   FastLED.setBrightness(brightness);
 
-  //Station mode AP
-  WiFi.mode(WIFI_AP);
-  WiFi.softAP("Cadre Magique", "Vive la Bretagne !", true, 1);
-
+  //Wifi Manager
+  WiFiManager wm;
+  bool connectionStatus;
+  connectionStatus = wm.autoConnect("Cadre Magique");
+  if(!connectionStatus) {
+    Serial.println("Failed to connect");
+  } 
+  else {
+    //if you get here you have connected to the WiFi    
+    Serial.println("connected...yeey :)");
+  }
+  
   //Http Server
   server.onNotFound([]() { 
     // If the client requests any URI
@@ -102,11 +108,6 @@ void setup() {
   });
   server.begin();
   Serial.println("HTTP server Running on port 80");
-
-  //RTC
-//  pftime::configTzTime(PSTR("CET-1CEST,M3.5.0,M10.5.0/3"), ntpServer);
-//  struct tm *tm = pftime::localtime(nullptr);
-//  printTime(tm);
 }
 
 /**************************************************************************************
@@ -149,15 +150,21 @@ void loop() {
       plusState = plusRead;
       if (plusState == HIGH) {
         Serial.println("Brightness +");
-        if(brightness >= 245) {
-          brightness = 255;
+
+        if(desiredBrightness < brightness) {
+          desiredBrightness = brightness;
+        }
+        
+        if(desiredBrightness >= 245) {
+          desiredBrightness = 255;
         } else {
-          brightness += 10;
+          desiredBrightness += 10;
         }
 
         //save selected brightness to eeprom ( flash)
-        EEPROM.write(0, brightness);
+        EEPROM.write(0, desiredBrightness);
         EEPROM.commit();
+        displayPicture();
       }
     }
   }
@@ -167,41 +174,32 @@ void loop() {
       minusState = minusRead;
       if (minusState == HIGH) {
         Serial.println("Brightness -");
-        if(brightness <= 10) {
-          brightness = 0;
+
+        if(desiredBrightness > brightness) {
+          desiredBrightness = brightness;
+        }
+        
+        if(desiredBrightness <= 10) {
+          desiredBrightness = 0;
         } else {
-          brightness -= 10;
+          desiredBrightness -= 10;
         }
 
         //save selected brightness to eeprom ( flash)
-        EEPROM.write(0, brightness);
+        EEPROM.write(0, desiredBrightness);
         EEPROM.commit();
+        displayPicture();
       }
     }
   }
   
   lastPlusState = plusRead;
   lastMinusState = minusRead;
-
-  int powerPlugged = digitalRead(POWER_SW);
   
-  //Limit brightness if power isn't plugged (working only on USB)
-  if ( powerPlugged == HIGH ) {
-    brightness = calculate_max_brightness_for_power_vmA(g_LEDs, NUM_LEDS, brightness, 5, maxPower); 
-  } else {
-    brightness = calculate_max_brightness_for_power_vmA(g_LEDs, NUM_LEDS, brightness, 5, minPower); 
-  }
-  
-  
-
   //HTTP Server
   server.handleClient();
-  
-  //Display
-  FastLED.setBrightness(brightness);
-  FastLED.show();
-  delay(10);
-  
+
+  //Picture play loop
   if(firstBoot || (playmode && (millis() - lastImageShowedMillis >= refreshRateValues[refreshRateIndex])) ) {
     firstBoot = false;
     File sketchFile = sketchDir.openNextFile();
@@ -220,6 +218,7 @@ void loop() {
         sketchIndex++;
       }
       setLEDsWithSketch(sketch);
+      displayPicture();
       lastImageShowedMillis = millis();
       sketchFile.close();
     } else {
@@ -231,6 +230,27 @@ void loop() {
 /**************************************************************************************
  *                                TOOLS
  *************************************************************************************/
+
+void displayPicture(){
+  //Limit brightness if power isn't plugged (working only on USB)
+  int powerPlugged = digitalRead(POWER_SW);
+  
+  if ( powerPlugged == HIGH ) {
+    brightness = calculate_max_brightness_for_power_vmA(g_LEDs, NUM_LEDS, desiredBrightness, 5, maxPower); 
+  } else {
+    brightness = calculate_max_brightness_for_power_vmA(g_LEDs, NUM_LEDS, desiredBrightness, 5, minPower); 
+  }
+
+  Serial.print("Desired brightness: ");
+  Serial.println(desiredBrightness);
+  Serial.print("Real brightness: ");
+  Serial.println(brightness);
+
+  //Display
+  FastLED.setBrightness(brightness);
+  FastLED.show();
+  delay(10);
+}
 
 bool validateSketch(const char* sketch) {
   Serial.println(sketch);
@@ -300,7 +320,7 @@ bool handleFileRead(String path) {
       String sketch = server.arg("sketch");
       if(validateSketch(sketch.c_str())){
         setLEDsWithSketch(sketch.c_str());
-        FastLED.show();
+        displayPicture();
         server.send(200, "text/plain", "Sketch diplayed !");
         delay(5000);
       } else {
@@ -331,8 +351,7 @@ bool handleFileRead(String path) {
           Serial.print("File saved :");
           Serial.println(sketchSavePath);
           setLEDsWithSketch(sketch.c_str());
-          FastLED.show();
-          setLEDsWithSketch(sketch.c_str());
+          displayPicture();
           server.send(200, "text/plain", "File saved !");
           delay(5000);
         } else {
@@ -405,8 +424,6 @@ bool handleFileRead(String path) {
         
       String response = "<!DOCTYPE html><head><meta http-equiv='Content-Type' content='text/html; charset=utf-8'/><html><body>";
       response += "Configuration appliquée...<br/><br/>";
-      response += "Adresse IP du tableau magique :";
-      response += "192.168.4.1";
       response += "<br/><br/>";
       response += "<a href='index.html'>Retour à la page d'acceuil<a></body></html>";
       server.send(200, "text/html", response);
@@ -422,14 +439,4 @@ String getContentType(String filename){
   else if(filename.endsWith(".css")) return "text/css";
   else if(filename.endsWith(".js")) return "application/javascript";
   return "text/plain";
-}
-
-void printTime(struct tm *tm) {
-  Serial.printf("%04d/%02d/%02d %02d:%02d:%02d\n",
-                tm->tm_year + 1900,
-                tm->tm_mon + 1,
-                tm->tm_mday,
-                tm->tm_hour,
-                tm->tm_min,
-                tm->tm_sec);
 }
